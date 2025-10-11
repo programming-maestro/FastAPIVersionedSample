@@ -144,7 +144,8 @@ How it works
 
             Each container exposes port 8000 internally, but Docker automatically assigns a random free host port for each container.
     Check host ports with: docker ps
-
+Note:
+    use docker-compose simple 1.yml
 ------------------------------------------------------------------------------------------------------------------------
 Load Balancing: NGINX (Dev only)
 ------------------------------------------------------------------------------------------------------------------------
@@ -161,3 +162,15 @@ NGINX automatically load balances requests to all FastAPI containers.
         docker-compose down -v
         docker system prune -af
             This removes all stopped containers, unused images, and old volumes.
+            use following: docker-compose with nginx.yml
+------------------------------------------------------------------------------------------------------------------------
+Load Balancing: Traefik (Prod ready)
+------------------------------------------------------------------------------------------------------------------------
+    Currently we are passing container count at runtime, same can be fixed on the docker-compose.yml file.
+    Commands:
+        Start:              docker compose up --build -d --scale fastapi-app=3
+        Delete Container:   docker-compose down -v
+        Delete Image:       docker system prune -af
+
+    URL:        http://localhost:8090/whoami
+    Dashboard:  http://localhost:8091/dashboard

@@ -1,0 +1,15 @@
+services:
+  fastapi-app-service:
+    build: .
+    restart: unless-stopped
+    environment:
+      - APP_MODE=multi-container
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+    depends_on:
+      - fastapi-app-service

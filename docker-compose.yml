@@ -1,26 +1,33 @@
-#services:
- # fastapi-app-service:
-  #  build: .
-   # ports:
-    #  - "0:8000"   # Container port 8000 mapped to a random free host port
-    #environment:
-     # - APP_MODE=multi-container
-    #restart: unless-stopped
-
-
-
 services:
-  fastapi-app-service:
-    build: .
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    command:
+      # Enable Traefik dashboard and Docker provider
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:8090"
+    ports:
+      - "8090:8090"     # Main entrypoint (HTTP)
+      - "8091:8080"     # Traefik dashboard (optional)
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
     restart: unless-stopped
+
+  fastapi-app:
+    build: .
+    # No fixed container_name so Docker can scale multiple instances
+    expose:
+      - "8000"  # Internal container port for Traefik
     environment:
       - APP_MODE=multi-container
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fastapi.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.fastapi.entrypoints=web"
+      - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
+    restart: unless-stopped
 
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "8000:80"
-    volumes:
-      - ./nginx:/etc/nginx/conf.d:ro
-    depends_on:
-      - fastapi-app-service
+networks:
+  default:
+    driver: bridge
