@@ -144,3 +144,12 @@ How it works
 
             Each container exposes port 8000 internally, but Docker automatically assigns a random free host port for each container.
     Check host ports with: docker ps
+
+------------------------------------------------------------------------------------------------------------------------
+Load Balancing: NGINX (Dev only)
+------------------------------------------------------------------------------------------------------------------------
+NGINX automatically load balances requests to all FastAPI containers.
+    1. Updated the docker-compose.yml
+    2. docker-compose up --build --scale fastapi-app-service=5
+        This will start 5 FastAPI containers plus 1 NGINX container.
+        If you change the number of FastAPI containers, that at runtime in above command, you need to update NGINX upstream list in the docker-compose.yml
