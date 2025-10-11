@@ -1,2 +1,8 @@
-fastapi
-uvicorn
+fastapi>=0.100.0 #fastapi installs Pydantic automatically
+uvicorn[standard]>=0.23.0  #uvicorn[standard] is needed to run FastAPI server.
+pydantic>=2.5.1
+
+
+# fastapi>=0.100.0 automatically installs a compatible version of pydantic, so explicitly including pydantic>=2.5.1 is optional.
+# uvicorn[standard] ensures you have all recommended extras (httptools, uvloop) for better performance.
+# No other packages are needed based on your imports (datetime is standard library, utils.access_control is local).
