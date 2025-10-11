@@ -33,3 +33,16 @@ curl -X POST "http://127.0.0.1:8000/api/v2/upload"  -H "Content-Type: applicatio
 
 v3:
 curl -X POST "http://127.0.0.1:8000/api/v3/upload"  -H "Content-Type: application/json" -d "{\"name\": \"Don\", \"value\": 786}"
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+INTERNAL API
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+uvicorn internal_api:app --reload --host 127.0.0.1 --port 8000 [if in the root]
+uvicorn routes.internal_api:app --reload --host 127.0.0.1 --port 8000
+uvicorn routes.internal_api:app --reload --host 0.0.0.0 --port 8000  [allows access via LAN and deployed system ip: in windows check with ipconfig]
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+LAN ONLY API
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+uvicorn routes.lan_only:app --reload --host 0.0.0.0 --port 8000  [allows access via LAN and deployed system ip: in windows check with ipconfig]
