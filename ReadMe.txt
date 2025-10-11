@@ -153,3 +153,11 @@ NGINX automatically load balances requests to all FastAPI containers.
     2. docker-compose up --build --scale fastapi-app-service=5
         This will start 5 FastAPI containers plus 1 NGINX container.
         If you change the number of FastAPI containers, that at runtime in above command, you need to update NGINX upstream list in the docker-compose.yml
+
+    3. Testing
+        hit this to get container id in response: http://localhost:8000/whoami
+
+    Note: Stop and remove everything from previous runs to ensure no cached images are used.
+        docker-compose down -v
+        docker system prune -af
+            This removes all stopped containers, unused images, and old volumes.
