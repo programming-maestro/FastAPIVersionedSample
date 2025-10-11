@@ -10,13 +10,21 @@ Network Testing:
 Network Development Testing:
     uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-URL:
+------------------------------------------------------------------------------------------------------------------------
+URL
+------------------------------------------------------------------------------------------------------------------------
 Legacy: http://127.0.0.1:8000/temp
 v1: http://127.0.0.1:8000/api/v1/temp
 v2: http://127.0.0.1:8000/api/v2/temp
 v3: http://127.0.0.1:8000/api/v3/temp
 
+public:     http://127.0.0.1:8000/users
+lan:        http://127.0.0.1:8000/lan/devices/1
+internal:   http://127.0.0.1:8000/internal/users/1
+
+------------------------------------------------------------------------------------------------------------------------
 Interactive Docs:(default by FastAPI)
+------------------------------------------------------------------------------------------------------------------------
     Swagger: http://127.0.0.1:8000/docs
     ReDoc: http://127.0.0.1:8000/redoc
 
@@ -49,10 +57,8 @@ uvicorn routes.lan_only:app --reload --host 0.0.0.0 --port 8000  [allows access 
 
 
 ------------------------------------------------------------------------------------------------------------------------
-Dockerfile
+Dockerfile: How it works
 ------------------------------------------------------------------------------------------------------------------------
-
-How it works
     Base image: Python 3.13 slim for small size.
     Installs git so the container can clone your repo.
     Sets working directory /app.
@@ -60,3 +66,81 @@ How it works
     Installs Python dependencies from requirements.txt.
     Exposes port 8000 for LAN/public access.
     Runs FastAPI using uvicorn.
+
+------------------------------------------------------------------------------------------------------------------------
+Docker Steps:
+------------------------------------------------------------------------------------------------------------------------
+1️⃣ Make sure your project is ready
+
+    You have a requirements.txt file. ✅
+    Your main.py is at the project root. ✅
+    Your Dockerfile is in the project root (same folder as main.py). ✅
+
+2️⃣ Build the Docker image
+
+    Open a terminal in your project root (where the Dockerfile is) and run:
+
+    docker build -t fastapi-sample .
+
+        -t fastapi-sample → gives your image a name.
+        The . at the end means “build from this directory”.
+        You should see Docker steps run: base image, install dependencies, copy files, etc.
+
+3️⃣ Run the Docker container
+
+    Once the build finishes, run:
+
+        docker run -p 8000:8000 fastapi-sample
+
+            -p 8000:8000 maps container port 8000 → host machine port 8000.
+            Your FastAPI app will now be accessible: http://localhost:8000
+            Or from LAN (other devices on the network): http://<your_machine_ip>:8000
+
+4️⃣ Test your APIs
+
+    Check public routes, internal routes, and LAN-only routes.
+    Localhost routes should work as expected (127.0.0.1).
+    LAN-only routes should be accessible from devices in the same network.
+    Internal-only routes should fail from LAN devices.
+
+5️⃣ Optional: Run container in background
+
+    docker run -d -p 8000:8000 fastapi-sample
+
+        -d → detached mode (runs in background).
+        Use docker ps to see running containers.
+        Use docker logs <container_id> to check logs.
+
+6️⃣ Update container when code changes
+
+    Since your Dockerfile pulls code from GitHub at build time:
+        1. Update your code in GitHub.
+        2. Rebuild the image:
+
+            docker build -t fastapi-sample .
+
+        3. Stop the old container and run the new one.
+
+Summary
+    docker build -t fastapi-sample .
+    docker run -d -p 8000:8000 --name my-fastapi-container fastapi-sample
+    # it gives container name, viz 'my-fastapi-container'
+
+------------------------------------------------------------------------------------------------------------------------
+Docker Compose: dynamic, auto ports
+------------------------------------------------------------------------------------------------------------------------
+How it works
+
+    The service is defined once.
+    You can scale it at runtime, with the following command from the cmd line
+
+        docker-compose up --build --scale fastapi-app=5
+            This creates 5 containers:
+                fastapi_app_1
+                fastapi_app_2
+                …
+                fastapi_app_5
+                Note: fastapi_app is the name given under docker-compose.yml --> service name, under services
+
+            Each container exposes port 8000 internally, but Docker automatically assigns a random free host port for each container.
+    Check host ports with: docker ps

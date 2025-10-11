@@ -1,0 +1,10 @@
+services:
+  fastapi-app-service:
+    build: .
+    ports:
+      - "0:8000"   # Container port 8000 mapped to a random free host port
+    environment:
+      - APP_MODE=multi-container
+    restart: unless-stopped
+
+
