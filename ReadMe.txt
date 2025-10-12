@@ -174,3 +174,31 @@ Load Balancing: Traefik (Prod ready)
 
     URL:        http://localhost:8090/whoami
     Dashboard:  http://localhost:8091/dashboard
+
+------------------------------------------------------------------------------------------------------------------------
+Kubernetes
+------------------------------------------------------------------------------------------------------------------------
+
+Step 1: Create a kind cluster
+    kind create cluster --name fastapi-cluster --config ./k8s/kind-config.yaml
+
+Step 2: Build your Docker image for kind
+    docker build -t fastapi-app:latest .
+    kind load docker-image fastapi-app:latest --name fastapi-cluster
+
+Step 3: Create Kubernetes Deployment
+    Created a file deployment.yaml under k8s folder.
+
+Step 4: Expose Deployment with Service
+    Created service.yaml under k8s folder.
+
+Step 5: Apply Deployment and Service
+    kubectl apply -f deployment.yaml
+    kubectl apply -f service.yaml
+
+    Check pods:
+        kubectl get pods
+        kubectl get svc
+
+Step 6: Test your app/endpoints
+    Test the endpoint: http://localhost:30001/time
