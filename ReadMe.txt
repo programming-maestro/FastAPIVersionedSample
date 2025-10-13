@@ -166,7 +166,9 @@ NGINX automatically load balances requests to all FastAPI containers.
 ------------------------------------------------------------------------------------------------------------------------
 Load Balancing: Traefik (Prod ready)
 ------------------------------------------------------------------------------------------------------------------------
-    Currently we are passing container count at runtime, same can be fixed on the docker-compose.yml file.
+    - Implemeented
+    - FYI, Currently we are passing container count at runtime, same can be fixed on the docker-compose.yml file.
+
     Commands:
         Start:              docker compose up --build -d --scale fastapi-app=3
         Delete Container:   docker-compose down -v
@@ -193,12 +195,123 @@ Step 4: Expose Deployment with Service
     Created service.yaml under k8s folder.
 
 Step 5: Apply Deployment and Service
-    kubectl apply -f deployment.yaml
-    kubectl apply -f service.yaml
+    kubectl apply -f ./k8s/deployment.yaml
+    kubectl apply -f ./k8s/service.yaml
 
     Check pods:
         kubectl get pods
         kubectl get svc
 
 Step 6: Test your app/endpoints
-    Test the endpoint: http://localhost:30001/time
+    Test the endpoint: http://localhost:30001/temp
+
+------------------------------------------------------------------------------------------------------------------------
+Kubernetes: Enable Metrics Server (Required for Autoscaling) Horizontal Pod Autoscaler (HPA)
+------------------------------------------------------------------------------------------------------------------------
+
+Step 7: HPA requires metrics. Install metrics-server in your cluster:
+    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+Step 8: Verify metrics-server is running
+    kubectl get deployment metrics-server -n kube-system
+    kubectl get pods -n kube-system
+
+    Test metrics API
+        kubectl top nodes
+        kubectl top pods
+
+    # Allow insecure TLS (bypass kubelet cert validation)
+        kubectl patch deployment metrics-server -n kube-system --type="json" -p="[{'op':'add','path':'/spec/template/spec/containers/0/args/-','value':'--kubelet-insecure-tls'}]"
+
+    # Prefer internal IPs for scraping (helps in containerized environments like Kind)
+        kubectl patch deployment metrics-server -n kube-system --type="json" -p="[{'op':'add','path':'/spec/template/spec/containers/0/args/-','value':'--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP'}]"
+
+    Then restart the deployment:
+        kubectl rollout restart deployment metrics-server -n kube-system
+
+    After a few seconds, confirm it’s running:
+        kubectl get pods -n kube-system
+
+    kubectl top nodes
+    kubectl top pods -A
+
+Step 9: Create Horizontal Pod Autoscaler (HPA)
+    Created hpa.yaml under k8s folder.
+
+Step 10: Apply it
+    kubectl apply -f ./k8s/hpa.yaml
+
+    Check:
+        kubectl get hpa
+
+------------------------------------------------------------------------------------------------------------------------
+Test AutoScaling
+------------------------------------------------------------------------------------------------------------------------
+You can generate load using hey or ab or even Python:
+
+# Install hey if not available
+    Download from https://github.com/rakyll/hey
+        https://hey-release.s3.us-east-2.amazonaws.com/hey_windows_amd64
+        hey_windows_amd64 will be downloaded
+        rename with extension, .ext ->  hey_windows_amd64.exe
+
+# Send load
+    hey -z 60s -c 20 http://localhost:30001/temp
+
+Check HPA status:
+    kubectl get hpa -w      [have this command run in a seperate cmd prompt so that you see live update on pod creation and deletion.]
+    kubectl get pods
+
+For testing auto - scaling, I had the CPU utilization to 2%.
+    - Validated the maxpod increase from 1 to 7
+    - For scaling down, post stopping the traffic, viz in our case 'hey' command.
+        - Each pod will monitor for 5 for CPU utilization, before deleting that pod.
+        - Alternately we can
+            1. This temporarily sets replicas to 1 [After auto scaling], which will delete all pods
+                kubectl scale deployment fastapi-deployment --replicas=1
+
+            2. You can delete and re-apply HPA (less recommended):
+                here update CPU utilization from 2 to more like 5% under hpa.yaml, 50% then run the following command.
+                    kubectl delete hpa fastapi-hpa
+                    kubectl apply -f hpa.yaml
+            3. - update CPU utilization from 2 to more like 5% under hpa.yaml
+               - kubectl apply -f hpa.yaml
+               - Then each pod will take 5min, to ensure minimum pod utilization is below set target, viz 5%. before deleting itself.
+
+Note: 2% cpu or 5% is for testing auto scaling.
+------------------------------------------------------------------------------------------------------------------------
+Clean Up
+------------------------------------------------------------------------------------------------------------------------
+kind delete cluster --name fastapi-cluster
+docker image rm fastapi-app:latest
+
+------------------------------------------------------------------------------------------------------------------------
+Clean Up: All
+------------------------------------------------------------------------------------------------------------------------
+Delete all Kubernetes resources
+    # Delete all workloads in all namespaces
+    kubectl delete all --all --all-namespaces
+
+    # Delete all configmaps and secrets (optional but thorough)
+    kubectl delete configmap --all --all-namespaces
+    kubectl delete secret --all --all-namespaces
+
+Delete all Kind clusters
+    # List all Kind clusters and delete each one
+    kind get clusters | ForEach-Object { kind delete cluster --name $_ }
+
+Clean up Docker containers, images, networks, and volumes
+    # Stop all running containers
+    docker ps -q | ForEach-Object { docker stop $_ }
+
+    # Remove all containers
+    docker ps -aq | ForEach-Object { docker rm $_ }
+
+    # Remove all images
+    docker images -q | ForEach-Object { docker rmi $_ -f }
+
+    # Remove all volumes
+    docker volume ls -q | ForEach-Object { docker volume rm $_ }
+
+    # Remove all networks not used by default
+    docker network ls -q | ForEach-Object { docker network rm $_ }
