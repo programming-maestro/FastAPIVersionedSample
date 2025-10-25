@@ -92,9 +92,21 @@ Docker Steps:
 
         docker run -p 8000:8000 fastapi-sample
 
-            -p 8000:8000 maps container port 8000 → host machine port 8000.
-            Your FastAPI app will now be accessible: http://localhost:8000
-            Or from LAN (other devices on the network): http://<your_machine_ip>:8000
+    Why -p 8000:8000 is needed
+        Docker containers have their own network isolated from your host machine.
+        Even if FastAPI is running on port 8000 inside the container, your host cannot see it unless you explicitly map the ports.
+
+    The -p host_port(personal computer in our case):container_port syntax does this mapping:
+        container_port = 8000 → where FastAPI is listening inside the container.
+        host_port = 8000 → where your computer will forward traffic to the container.
+
+        Your Computer (localhost:8000)
+                │
+                ▼
+        Docker Port Mapping (-p 8000:8000)
+                │
+                ▼
+        Container (0.0.0.0:8000) → FastAPI (Uvicorn)
 
 4️⃣ Test your APIs
 
@@ -180,7 +192,7 @@ Load Balancing: Traefik (Prod ready)
 ------------------------------------------------------------------------------------------------------------------------
 Kubernetes
 ------------------------------------------------------------------------------------------------------------------------
-
+(No need to execute any commands from Dockerization, ensure docker desktop is up and running)
 Step 1: Create a kind cluster
     kind create cluster --name fastapi-cluster --config ./k8s/kind-config.yaml
 
@@ -261,6 +273,8 @@ You can generate load using hey or ab or even Python:
 Check HPA status:
     kubectl get hpa -w      [have this command run in a seperate cmd prompt so that you see live update on pod creation and deletion.]
     kubectl get pods
+    kubectl top pod
+    kubectl top nodes
 
 For testing auto - scaling, I had the CPU utilization to 2%.
     - Validated the maxpod increase from 1 to 7
@@ -279,6 +293,24 @@ For testing auto - scaling, I had the CPU utilization to 2%.
                - Then each pod will take 5min, to ensure minimum pod utilization is below set target, viz 5%. before deleting itself.
 
 Note: 2% cpu or 5% is for testing auto scaling.
+
+I tried "hey -z 10s -c 2000 http://localhost:30001/temp" and things fall apart, nodes got created to max, but later no request will fulfilling, coz
+    Why your requests fail
+        1. Kind networking on Windows is limited
+            NodePort (30001) goes through Docker’s NAT/bridge
+            Windows + Docker Desktop has low max TCP connections for containers (usually 1500 rps/tps)
+            High concurrency (-c 2000) easily saturates the NodePort → connections fail
+        2. FastAPI concurrency inside pod is limited by OS / TCP sockets
+            With 1 worker, pod can’t handle thousands of concurrent connections on Windows + Kind
+        3. Resource starvation in Kind
+            Default Kind cluster on Windows often has 1–2 CPUs
+            HPA may scale pods, but host cannot schedule all connections quickly enough
+
+Extra Notes for Windows + Kind:
+
+    Docker Desktop on Windows has network limits. NodePort > 1500-2000 concurrent connections may fail.
+
+    For very high concurrency testing, consider minikube on Linux VM or local microk8s.
 ------------------------------------------------------------------------------------------------------------------------
 Clean Up
 ------------------------------------------------------------------------------------------------------------------------
@@ -288,6 +320,9 @@ docker image rm fastapi-app:latest
 ------------------------------------------------------------------------------------------------------------------------
 Clean Up: All
 ------------------------------------------------------------------------------------------------------------------------
+Delete Kind cluster
+    kind delete cluster --name fastapi-cluster
+
 Delete all Kubernetes resources
     # Delete all workloads in all namespaces
     kubectl delete all --all --all-namespaces
